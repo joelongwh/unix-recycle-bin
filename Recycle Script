@@ -1,0 +1,112 @@
+
+  1 #!/bin/bash
+  2 
+  3 # RECYCLE SCRIPT
+  4 
+  5 function optFunc() {
+  6 interact=false
+  7 verbose=false
+  8 recursive=false
+  9 while getopts :ivr opt
+ 10 do
+ 11    case $opt in
+ 12         i) interact=true;;
+ 13         v) verbose=true;;
+ 14         r) recursive=true;;
+ 15         *) echo Bad Option - $OPTARG
+ 16            exit 1;;
+ 17    esac
+ 18 done
+ 19 }
+ 20 
+ 21 function checkVIOptions() {
+ 22    if $interact
+ 23       then read -p "remove regular file '$1'?: " input
+ 24           case $input in
+ 25             y*|Y*) ;;
+ 26             *) exit 0;;
+ 27           esac
+ 28    fi
+ 29 
+ 30    if $verbose
+ 31       then echo "removed '$1'"
+ 32    fi
+ 33 }
+ 34 
+ 35 function moveFile() {
+ 36    if [ ! -d $1 ] ; then
+ 37       fileInode=$(ls -i $1 | cut -d' ' -f1)
+ 38       fileName=$(basename $1)
+ 39       newFileName=$fileName"_"$fileInode
+ 40       mv $1 $HOME/recyclebin/$newFileName #2> /dev/null
+ 41     fi
+ 42 }
+ 43 
+ 44 function hiddenFile() {
+ 45    if [ ! -d $1 ] ; then
+ 46       absPath=$(realpath $1)
+ 47       echo $newFileName":"$absPath >> $HOME/.restore.info
+ 48    fi
+ 49 }
+ 50 
+ 51 ################################ MAIN ##################################
+ 52 
+ 53 # Read options and shift focus
+ 54 optFunc $*
+ 55 shift $[OPTIND-1]
+ 56 
+ 57 # Create recyclebin directory
+ 58 if [ ! -d $HOME/recyclebin ]
+ 59    then mkdir $HOME/recyclebin
+ 60 fi
+ 61 
+ 62 # Test for error conditions and display error messages
+ 63 
+ 64 # Test if filename provided
+ 65 if [ $# -eq 0 ]
+ 66    then echo "No filename provided"
+ 67         exit 1
+ 68 
+ 69 else
+ 70    for i in $*
+ 71    do
+ 72 
+ 73       # Test if file exists
+ 74       if [ ! -e $i ] ; then
+ 75          echo "'$i' file does not exist"
+ 76 
+ 77 
+ 78       # Test if directory name provided instead of file
+ 79       elif [ -d $i ]
+ 80          then
+ 81               if $recursive
+ 82                  then
+ 83                      for file in $(find $i)
+ 84                         do
+ 85                            checkVIOptions $file
+ 86                            moveFile $file
+ 87                            hiddenFile $file
+ 88                         done
+ 89                      rm -r $i
+ 90 
+ 91               else echo "'$i' is a directory; not a file"
+ 92                    exit
+ 93               fi
+ 94 
+ 95       # Test that file being deleted is not the recycle script
+ 96       elif  echo $i | grep -q recycle
+ 97          then echo "Attempting to delete recycle - operation aborted"
+ 98               exit
+ 99 
+100       else
+101       # Check for -v and -i options
+102       checkVIOptions $i
+103 
+104       # Rename and move file into recyclebin
+105       moveFile $i
+106 
+107       # Create hidden file to contain name and original absolute path of deleted file
+108       hiddenFile $i
+109       fi
+110    done
+111 fi

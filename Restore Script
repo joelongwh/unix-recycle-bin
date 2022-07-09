@@ -1,0 +1,49 @@
+
+  1 #!/bin/bash
+  2 
+  3 # RESTORE SCRIPT
+  4 
+  5 function restoreFile() {
+  6    if [ ! -d $ogDir ] ; then
+  7       mkdir $ogDir
+  8    fi
+  9    mv $filePath $ogPath
+ 10    grep -v $i $HOME/.restore.info > $HOME/.restore.info_tmp
+ 11    mv $HOME/.restore.info_tmp $HOME/.restore.info
+ 12    echo "File restored"
+ 13 }
+ 14 
+ 15 ############################################### MAIN ##################################################
+ 16 
+ 17 # Test for error conditions and display error messages
+ 18 if [ $# -eq 0 ] ; then
+ 19    echo "No filename provided"
+ 20    exit 1
+ 21 
+ 22 else
+ 23    for i in $*
+ 24    do
+ 25       filePath=$HOME/recyclebin/$i
+ 26       if [ ! -e $filePath ] ; then
+ 27          echo "'$i' file does not exist"
+ 28          exit
+ 29 
+ 30       else
+ 31          # Check whether file being restored already exists in target directory 
+ 32          ogPath=$(grep $i $HOME/.restore.info | cut -d':' -f2)
+ 33          ogDir=$(dirname $ogPath)
+ 34 
+ 35          if [ -e $ogPath ] ; then
+ 36             read -p "Do you want to overwrite? y/n " input
+ 37             case $input in
+ 38                y*|Y*) restoreFile ;;
+ 39                *) echo "File not restored"
+ 40                   exit
+ 41             esac
+ 42 
+ 43          else
+ 44             restoreFile
+ 45          fi
+ 46       fi
+ 47    done
+ 48 fi
